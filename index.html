@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Chat App (GAS + Google Sheets Ready)</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Custom Scrollbar for clean aesthetics */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden antialiased select-none">
+
+  <!-- ========================================== -->
+  <!-- 1. LOGIN / AUTHENTICATION PAGE             -->
+  <!-- ========================================== -->
+  <div id="loginPage" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-4">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950 pointer-events-none"></div>
+
+    <div class="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 text-indigo-400 mb-3 border border-indigo-500/30">
+          <i class="ph-bold ph-chats-teardrop text-3xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">Private Chat App</h1>
+        <p class="text-xs text-slate-400 mt-1">Sistem Chat Privat Berbasis Google Sheets & GAS</p>
+      </div>
+
+      <!-- Quick Preset Selector for Testing -->
+      <div class="mb-6 p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+        <label class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Demo Quick Access</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="fillCredentials('admin@chat.com', 'admin123')" class="px-3 py-2 text-xs font-medium bg-slate-700/50 hover:bg-slate-700 text-indigo-300 rounded-lg border border-slate-600/50 flex items-center justify-center gap-1.5 transition">
+            <i class="ph-bold ph-shield-check text-indigo-400"></i> Superuser
+          </button>
+          <button type="button" onclick="fillCredentials('member@chat.com', 'user123')" class="px-3 py-2 text-xs font-medium bg-slate-700/50 hover:bg-slate-700 text-emerald-300 rounded-lg border border-slate-600/50 flex items-center justify-center gap-1.5 transition">
+            <i class="ph-bold ph-user text-emerald-400"></i> Member
+          </button>
+        </div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email</label>
+          <div class="relative">
+            <i class="ph-bold ph-envelope-simple absolute left-3.5 top-3 text-slate-500"></i>
+            <input type="email" id="loginEmail" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="email@domain.com">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+          <div class="relative">
+            <i class="ph-bold ph-lock-key absolute left-3.5 top-3 text-slate-500"></i>
+            <input type="password" id="loginPassword" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="••••••••">
+          </div>
+        </div>
+
+        <div id="loginError" class="hidden p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl"></div>
+
+        <button type="submit" id="loginBtn" class="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+          <span>Masuk Aplikasi</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 2. MAIN DASHBOARD LAYOUT                  -->
+  <!-- ========================================== -->
+  <div id="mainDashboard" class="hidden h-full flex flex-col bg-slate-950">
+    
+    <!-- Top Header Navigation -->
+    <header class="h-16 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-20">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebarMobile()" class="md:hidden p-2 text-slate-400 hover:text-white rounded-lg bg-slate-800/50">
+          <i class="ph-bold ph-list text-xl"></i>
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
+            <i class="ph-bold ph-chats-teardrop text-xl"></i>
+          </div>
+          <div>
+            <span class="font-bold text-slate-100 text-sm block leading-none">PrivateChat</span>
+            <span class="text-[10px] text-slate-400 leading-none">GAS Connected Engine</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Header Info / Badges -->
+      <div class="flex items-center gap-3">
+        <!-- GAS Connection Status Indicator -->
+        <button onclick="openGasModal()" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:bg-slate-700/80 transition">
+          <span id="gasStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span id="gasStatusText" class="font-medium">Mode Lokal / Off</span>
+          <i class="ph-bold ph-gear text-slate-400"></i>
+        </button>
+
+        <div class="h-6 w-px bg-slate-800"></div>
+
+        <!-- User Profile Badge -->
+        <div class="flex items-center gap-2.5">
+          <div id="userAvatar" class="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-semibold text-xs flex items-center justify-center">
+            AU
+          </div>
+          <div class="hidden sm:block text-left">
+            <div id="userName" class="text-xs font-semibold text-slate-200">Admin User</div>
+            <div id="userRoleBadge" class="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              SUPERUSER
+            </div>
+          </div>
+          <button onclick="logout()" class="ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition" title="Logout">
+            <i class="ph-bold ph-sign-out text-lg"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="flex-1 flex overflow-hidden relative">
+      
+      <!-- Sidebar Navigation -->
+      <aside id="appSidebar" class="w-64 bg-slate-900 border-r border-slate-800/80 flex flex-col shrink-0 absolute md:static inset-y-0 left-0 z-30 transition-transform duration-300 transform -translate-x-full md:translate-x-0">
+        <div class="p-3 space-y-1">
+          <button onclick="switchTab('chat')" id="tabBtnChat" class="sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-white bg-indigo-600/90 shadow-md shadow-indigo-600/20">
+            <div class="flex items-center gap-3">
+              <i class="ph-bold ph-chat-circle-dots text-lg"></i>
+              <span>Chat Private</span>
+            </div>
+            <span id="unreadTotalBadge" class="hidden px-2 py-0.5 text-[10px] font-bold bg-indigo-400 text-slate-950 rounded-full">0</span>
+          </button>
+
+          <button onclick="switchTab('users')" id="tabBtnUsers" class="sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+            <div class="flex items-center gap-3">
+              <i class="ph-bold ph-users text-lg"></i>
+              <span>Kelola User</span>
+            </div>
+            <span class="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded border border-slate-700">Admin</span>
+          </button>
+
+          <button onclick="openGasModal()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+            <i class="ph-bold ph-database text-lg text-emerald-400"></i>
+            <span>Setelan Backend (GAS)</span>
+          </button>
+        </div>
+
+        <div class="mt-auto p-4 border-t border-slate-800/80 text-xs text-slate-500">
+          <div class="flex items-center justify-between mb-1">
+            <span>Storage Mode:</span>
+            <span id="storageModeLabel" class="font-medium text-amber-400">Local Cache</span>
+          </div>
+          <div class="text-[11px] text-slate-600">Syncs automatically when connected to GAS Web App URL.</div>
+        </div>
+      </aside>
+
+      <!-- Sidebar Overlay for Mobile -->
+      <div id="sidebarOverlay" onclick="toggleSidebarMobile()" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-20 md:hidden"></div>
+
+      <!-- Main Dynamic Content Area -->
+      <main class="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
+        
+        <!-- VIEW 1: CHAT PRIVATE -->
+        <section id="viewChat" class="h-full flex flex-col md:flex-row overflow-hidden">
+          
+          <!-- Contact List Sub-Sidebar -->
+          <div class="w-full md:w-80 border-r border-slate-800/80 bg-slate-900/50 flex flex-col shrink-0 h-1/3 md:h-full">
+            <div class="p-3 border-b border-slate-800/80">
+              <div class="relative">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
+                <input type="text" id="contactSearch" onkeyup="filterContacts()" placeholder="Cari kontak chat..." class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+
+            <!-- Contact Scroll Area -->
+            <div id="contactList" class="flex-1 overflow-y-auto divide-y divide-slate-800/40">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+
+          <!-- Active Chat Conversation Pane -->
+          <div class="flex-1 flex flex-col bg-slate-950/80 h-2/3 md:h-full relative">
+            
+            <!-- Active Contact Header -->
+            <div id="chatHeader" class="p-3.5 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-3">
+                <div id="activeContactAvatar" class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm text-slate-300">
+                  ?
+                </div>
+                <div>
+                  <h3 id="activeContactName" class="text-sm font-semibold text-slate-100">Pilih kontak untuk memulai chat</h3>
+                  <p id="activeContactRole" class="text-[11px] text-slate-400">Klik salah satu kontak di sebelah kiri</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1">
+                <button onclick="refreshData()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition" title="Refresh Messages">
+                  <i class="ph-bold ph-arrows-clockwise text-lg"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Chat Message List Body -->
+            <div id="chatMessageList" class="flex-1 overflow-y-auto p-4 space-y-3">
+              <div class="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
+                <i class="ph-bold ph-chats text-5xl mb-2 text-slate-700"></i>
+                <p class="text-sm">Belum ada percakapan terpilih.</p>
+                <p class="text-xs text-slate-600 mt-1">Pilih teman bicara dari daftar sebelah kiri.</p>
+              </div>
+            </div>
+
+            <!-- Message Composer Form -->
+            <form id="chatComposer" onsubmit="sendChatMessage(event)" class="p-3 border-t border-slate-800/80 bg-slate-900/80 flex items-center gap-2 shrink-0">
+              <button type="button" onclick="alert('Fitur lampiran media dapat disesuaikan dengan Google Drive API')" class="p-2.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition" title="Lampirkan berkas">
+                <i class="ph-bold ph-paperclip text-lg"></i>
+              </button>
+              <input type="text" id="chatInput" placeholder="Ketik pesan privat..." autocomplete="off" class="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+              <button type="submit" id="btnSendMsg" class="p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center justify-center">
+                <i class="ph-bold ph-paper-plane-right text-lg"></i>
+              </button>
+            </form>
+
+          </div>
+        </section>
+
+
+        <!-- VIEW 2: KELOLA USER (Superuser Only) -->
+        <section id="viewUsers" class="hidden h-full flex-col p-4 md:p-6 overflow-y-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 class="text-xl font-bold text-slate-100">Kelola Pengguna System</h2>
+              <p class="text-xs text-slate-400">Daftar akun terdaftar yang tersimpan di Google Sheet / Storage</p>
+            </div>
+            <button onclick="openUserModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition self-start sm:self-auto">
+              <i class="ph-bold ph-user-plus text-base"></i>
+              <span>Tambah User Baru</span>
+            </button>
+          </div>
+
+          <!-- User Table Container -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div class="p-3 border-b border-slate-800 flex items-center gap-3">
+              <div class="relative flex-1 max-w-xs">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
+                <input type="text" id="userTableSearch" onkeyup="renderUserTable()" placeholder="Filter user..." class="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950/60 text-slate-400 uppercase tracking-wider border-b border-slate-800 font-semibold">
+                  <tr>
+                    <th class="py-3 px-4">User ID</th>
+                    <th class="py-3 px-4">Nama</th>
+                    <th class="py-3 px-4">Email</th>
+                    <th class="py-3 px-4">Role</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="userTableBody" class="divide-y divide-slate-800/60">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 3. MODAL: ADD / EDIT USER                  -->
+  <!-- ========================================== -->
+  <div id="userModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="userModalTitle" class="text-base font-bold text-slate-100">Tambah User Baru</h3>
+        <button onclick="closeUserModal()" class="text-slate-400 hover:text-white p-1"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+
+      <form id="userForm" onsubmit="saveUser(event)" class="space-y-3">
+        <input type="hidden" id="formUserId">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Nama Lengkap</label>
+          <input type="text" id="formUserName" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email</label>
+          <input type="email" id="formUserEmail" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+          <input type="password" id="formUserPass" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500" placeholder="••••••••">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Role</label>
+            <select id="formUserRole" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+              <option value="Member">Member</option>
+              <option value="Superuser">Superuser</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Status</label>
+            <select id="formUserStatus" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" onclick="closeUserModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-medium rounded-xl hover:bg-slate-700">Batal</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-xl hover:bg-indigo-500 shadow-md shadow-indigo-600/30">Simpan User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 4. MODAL: SETELAN GAS & BACKEND CODE       -->
+  <!-- ========================================== -->
+  <div id="gasModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between mb-4 shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ph-database text-emerald-400 text-xl"></i>
+          <h3 class="text-base font-bold text-slate-100">Pengaturan Backend (Google Apps Script)</h3>
+        </div>
+        <button onclick="closeGasModal()" class="text-slate-400 hover:text-white p-1"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+
+      <div class="space-y-4 overflow-y-auto pr-1 flex-1">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">URL Web App Google Apps Script</label>
+          <div class="flex gap-2">
+            <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+            <button onclick="testGasConnection()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shrink-0">
+              <i class="ph-bold ph-plug text-sm"></i>
+              <span>Test Koneksi</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">
+            Jika dikosongkan, aplikasi akan berjalan menggunakan penyimpanan sementara (localStorage).
+          </p>
+        </div>
+
+        <!-- Code Snippet Accordion -->
+        <div class="border border-slate-800 rounded-xl bg-slate-950 overflow-hidden">
+          <div class="p-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-300 flex items-center gap-2">
+              <i class="ph-bold ph-code text-indigo-400"></i> Kode Backend GAS (`Code.gs`) Lengkap
+            </span>
+            <button onclick="copyGasCode()" class="text-[11px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded border border-slate-700 transition flex items-center gap-1">
+              <i class="ph-bold ph-copy"></i> Salin Kode
+            </button>
+          </div>
+          <pre class="p-3 text-[11px] text-slate-300 font-mono overflow-x-auto max-h-52 bg-slate-950 select-text" id="gasCodeText">
+// ========================================================
+// CODE.GS - KODE BACKEND GOOGLE APPS SCRIPT
+// Tempelkan kode ini di Ekstensi > Apps Script Spreadsheet Anda
+// ========================================================
+
+function doGet(e) {
+  var action = e.parameter.action;
+  if (action === "getUsers") return responseJSON(getUsersData());
+  if (action === "getMessages") return responseJSON(getMessagesData());
+  return responseJSON({ status: "success", message: "API Active" });
+}
+
+function doPost(e) {
+  try {
+    var contents = JSON.parse(e.postData.contents);
+    var action = contents.action;
+
+    if (action === "sendMessage") {
+      return responseJSON(saveMessage(contents.data));
+    } else if (action === "saveUser") {
+      return responseJSON(saveUser(contents.data));
+    }
+    return responseJSON({ status: "error", message: "Invalid Action" });
+  } catch (err) {
+    return responseJSON({ status: "error", message: err.toString() });
+  }
+}
+
+function responseJSON(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getUsersData() {
+  var sheet = getOrCreateSheet("Users", ["id", "name", "email", "password", "role", "status"]);
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  return data.slice(1).map(function(row) {
+    var obj = {};
+    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    return obj;
+  });
+}
+
+function getMessagesData() {
+  var sheet = getOrCreateSheet("Messages", ["id", "senderId", "receiverId", "text", "timestamp"]);
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  return data.slice(1).map(function(row) {
+    var obj = {};
+    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    return obj;
+  });
+}
+
+function saveMessage(msg) {
+  var sheet = getOrCreateSheet("Messages", ["id", "senderId", "receiverId", "text", "timestamp"]);
+  sheet.appendRow([msg.id, msg.senderId, msg.receiverId, msg.text, msg.timestamp]);
+  return { status: "success", data: msg };
+}
+
+function saveUser(user) {
+  var sheet = getOrCreateSheet("Users", ["id", "name", "email", "password", "role", "status"]);
+  var data = sheet.getDataRange().getValues();
+  var foundIndex = -1;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === user.id || data[i][2] === user.email) {
+      foundIndex = i + 1;
+      break;
+    }
+  }
+  if (foundIndex > 0) {
+    sheet.getRange(foundIndex, 1, 1, 6).setValues([[user.id, user.name, user.email, user.password, user.role, user.status]]);
+  } else {
+    sheet.appendRow([user.id, user.name, user.email, user.password, user.role, user.status]);
+  }
+  return { status: "success", data: user };
+}
+
+function getOrCreateSheet(sheetName, headers) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(headers);
+  }
+  return sheet;
+}</pre>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-800 shrink-0">
+        <button onclick="saveGasSettings()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-xl hover:bg-indigo-500">Simpan URL</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 5. APPLICATION LOGIC & JAVASCRIPT ENGINE   -->
+  <!-- ========================================== -->
+  <script>
+    // --- APP STATE & INITIAL DATA ---
+    const DEFAULT_USERS = [
+      { id: "usr_1", name: "Superuser Admin", email: "admin@chat.com", password: "admin123", role: "Superuser", status: "Active" },
+      { id: "usr_2", name: "Budi Santoso", email: "member@chat.com", password: "user123", role: "Member", status: "Active" },
+      { id: "usr_3", name: "Siti Rahma", email: "siti@chat.com", password: "user123", role: "Member", status: "Active" }
+    ];
+
+    const DEFAULT_MESSAGES = [
+      { id: "msg_1", senderId: "usr_2", receiverId: "usr_1", text: "Halo Admin, selamat datang di sistem!", timestamp: "2026-10-20T10:00:00.000Z" },
+      { id: "msg_2", senderId: "usr_1", receiverId: "usr_2", text: "Terima kasih Budi! Sistem ini terhubung ke GAS & Sheets.", timestamp: "2026-10-20T10:02:00.000Z" }
+    ];
+
+    let currentUser = null;
+    let activeContactId = null;
+    let gasUrl = localStorage.getItem("chat_gas_url") || "";
+    
+    let state = {
+      users: JSON.parse(localStorage.getItem("chat_users")) || DEFAULT_USERS,
+      messages: JSON.parse(localStorage.getItem("chat_messages")) || DEFAULT_MESSAGES
+    };
+
+    // Save default mock state if empty
+    if (!localStorage.getItem("chat_users")) localStorage.setItem("chat_users", JSON.stringify(DEFAULT_USERS));
+    if (!localStorage.getItem("chat_messages")) localStorage.setItem("chat_messages", JSON.stringify(DEFAULT_MESSAGES));
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      if (gasUrl) {
+        document.getElementById("gasUrlInput").value = gasUrl;
+        updateGasStatusUI(true, "Terhubung GAS");
+        refreshDataFromGAS();
+      } else {
+        updateGasStatusUI(false, "Mode Lokal / Off");
+      }
+    };
+
+    // --- CREDENTIAL PRESETS ---
+    function fillCredentials(email, password) {
+      document.getElementById("loginEmail").value = email;
+      document.getElementById("loginPassword").value = password;
+    }
+
+    // --- AUTHENTICATION ENGINE ---
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value.trim();
+      const pass = document.getElementById("loginPassword").value.trim();
+      const errBox = document.getElementById("loginError");
+
+      const found = state.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+
+      if (!found) {
+        errBox.textContent = "Email atau password salah!";
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      if (found.status === "Inactive") {
+        errBox.textContent = "Akun Anda dinonaktifkan oleh Superuser.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      currentUser = found;
+      errBox.classList.add("hidden");
+
+      // Hide Login, Show Dashboard
+      document.getElementById("loginPage").classList.add("hidden");
+      document.getElementById("mainDashboard").classList.remove("hidden");
+
+      setupDashboardUI();
+    }
+
+    function logout() {
+      currentUser = null;
+      activeContactId = null;
+      document.getElementById("mainDashboard").classList.add("hidden");
+      document.getElementById("loginPage").classList.remove("hidden");
+    }
+
+    // --- UI DASHBOARD SETUP ---
+    function setupDashboardUI() {
+      document.getElementById("userName").textContent = currentUser.name;
+      document.getElementById("userAvatar").textContent = currentUser.name.substr(0, 2).toUpperCase();
+      
+      const roleBadge = document.getElementById("userRoleBadge");
+      roleBadge.textContent = currentUser.role.toUpperCase();
+
+      const tabBtnUsers = document.getElementById("tabBtnUsers");
+      if (currentUser.role === "Superuser") {
+        tabBtnUsers.classList.remove("hidden");
+      } else {
+        tabBtnUsers.classList.add("hidden");
+      }
+
+      switchTab("chat");
+      renderContactList();
+    }
+
+    // --- NAVIGATION TABS ---
+    function switchTab(tabName) {
+      const viewChat = document.getElementById("viewChat");
+      const viewUsers = document.getElementById("viewUsers");
+      const btnChat = document.getElementById("tabBtnChat");
+      const btnUsers = document.getElementById("tabBtnUsers");
+
+      if (tabName === "chat") {
+        viewChat.classList.remove("hidden");
+        viewChat.classList.add("flex");
+        viewUsers.classList.add("hidden");
+        viewUsers.classList.remove("flex");
+
+        btnChat.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-white bg-indigo-600/90 shadow-md shadow-indigo-600/20";
+        btnUsers.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+      } else if (tabName === "users") {
+        if (currentUser.role !== "Superuser") {
+          alert("Akses ditolak! Hanya Superuser yang dapat mengelola pengguna.");
+          return;
+        }
+        viewUsers.classList.remove("hidden");
+        viewUsers.classList.add("flex");
+        viewChat.classList.add("hidden");
+        viewChat.classList.remove("flex");
+
+        btnUsers.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-white bg-indigo-600/90 shadow-md shadow-indigo-600/20";
+        btnChat.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+
+        renderUserTable();
+      }
+    }
+
+    // --- CONTACT LIST & CHAT PRIVATE ENGINE ---
+    function renderContactList() {
+      const listContainer = document.getElementById("contactList");
+      const filter = document.getElementById("contactSearch").value.toLowerCase();
+      listContainer.innerHTML = "";
+
+      const contacts = state.users.filter(u => u.id !== currentUser.id && u.name.toLowerCase().includes(filter));
+
+      if (contacts.length === 0) {
+        listContainer.innerHTML = `<div class="p-4 text-xs text-slate-500 text-center">Tidak ada kontak ditemukan</div>`;
+        return;
+      }
+
+      contacts.forEach(c => {
+        const isSelected = activeContactId === c.id;
+        const lastMsg = getLastMessageBetween(currentUser.id, c.id);
+
+        const item = document.createElement("div");
+        item.onclick = () => selectContact(c.id);
+        item.className = `p-3 flex items-center gap-3 cursor-pointer transition ${isSelected ? 'bg-indigo-600/15 border-l-4 border-indigo-500' : 'hover:bg-slate-800/40'}`;
+
+        item.innerHTML = `
+          <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-semibold text-xs text-slate-200 shrink-0">
+            ${c.name.substr(0, 2).toUpperCase()}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 truncate">${c.name}</span>
+              <span class="text-[10px] text-slate-500">${lastMsg ? formatTime(lastMsg.timestamp) : ''}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 truncate mt-0.5">${lastMsg ? lastMsg.text : 'Belum ada pesan'}</p>
+          </div>
+        `;
+        listContainer.appendChild(item);
+      });
+    }
+
+    function selectContact(contactId) {
+      activeContactId = contactId;
+      renderContactList();
+
+      const contact = state.users.find(u => u.id === contactId);
+      if (!contact) return;
+
+      document.getElementById("activeContactName").textContent = contact.name;
+      document.getElementById("activeContactRole").textContent = `${contact.role} • ${contact.email}`;
+      document.getElementById("activeContactAvatar").textContent = contact.name.substr(0, 2).toUpperCase();
+
+      renderMessages();
+    }
+
+    function renderMessages() {
+      const msgContainer = document.getElementById("chatMessageList");
+      msgContainer.innerHTML = "";
+
+      if (!activeContactId) return;
+
+      const filtered = state.messages.filter(m => 
+        (m.senderId === currentUser.id && m.receiverId === activeContactId) ||
+        (m.senderId === activeContactId && m.receiverId === currentUser.id)
+      );
+
+      if (filtered.length === 0) {
+        msgContainer.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
+            <p class="text-xs">Belum ada riwayat percakapan.</p>
+            <p class="text-[11px] text-slate-600 mt-0.5">Kirim pesan pertama Anda di bawah ini.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(m => {
+        const isMine = m.senderId === currentUser.id;
+        const bubble = document.createElement("div");
+        bubble.className = `flex flex-col ${isMine ? 'items-end' : 'items-start'}`;
+
+        bubble.innerHTML = `
+          <div class="max-w-[75%] px-3.5 py-2 rounded-2xl text-xs ${isMine ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 border border-slate-700/80 rounded-bl-none'}">
+            ${escapeHTML(m.text)}
+          </div>
+          <span class="text-[9px] text-slate-500 mt-1 px-1">${formatTime(m.timestamp)}</span>
+        `;
+        msgContainer.appendChild(bubble);
+      });
+
+      // Auto scroll to bottom
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
+
+    function sendChatMessage(e) {
+      e.preventDefault();
+      if (!activeContactId) {
+        alert("Pilih kontak tujuan terlebih dahulu!");
+        return;
+      }
+
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      const newMsg = {
+        id: "msg_" + Date.now(),
+        senderId: currentUser.id,
+        receiverId: activeContactId,
+        text: text,
+        timestamp: new Date().toISOString()
+      };
+
+      state.messages.push(newMsg);
+      saveLocalState();
+      input.value = "";
+      renderMessages();
+      renderContactList();
+
+      // If GAS Connected, push online
+      if (gasUrl) {
+        fetch(gasUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sendMessage", data: newMsg })
+        }).catch(err => console.error("Error sync GAS:", err));
+      }
+    }
+
+    function getLastMessageBetween(u1, u2) {
+      const filtered = state.messages.filter(m => 
+        (m.senderId === u1 && m.receiverId === u2) || (m.senderId === u2 && m.receiverId === u1)
+      );
+      return filtered.length > 0 ? filtered[filtered.length - 1] : null;
+    }
+
+    // --- USER MANAGEMENT (SUPERUSER ONLY) ---
+    function renderUserTable() {
+      const tbody = document.getElementById("userTableBody");
+      const filter = document.getElementById("userTableSearch").value.toLowerCase();
+      tbody.innerHTML = "";
+
+      const filtered = state.users.filter(u => u.name.toLowerCase().includes(filter) || u.email.toLowerCase().includes(filter));
+
+      filtered.forEach(u => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/30 transition";
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${u.id}</td>
+          <td class="py-3 px-4 font-semibold text-slate-200">${u.name}</td>
+          <td class="py-3 px-4 text-slate-400">${u.email}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 text-[10px] rounded font-medium ${u.role === 'Superuser' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-300'}">
+              ${u.role}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center gap-1 text-[11px] ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}">
+              <span class="w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+              ${u.status}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right space-x-2">
+            <button onclick="editUser('${u.id}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-lg transition" title="Edit">
+              <i class="ph-bold ph-pencil-simple"></i>
+            </button>
+            <button onclick="toggleUserStatus('${u.id}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg transition" title="Toggle Status">
+              <i class="ph-bold ph-power"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openUserModal(editObj = null) {
+      const modal = document.getElementById("userModal");
+      const title = document.getElementById("userModalTitle");
+
+      if (editObj) {
+        title.textContent = "Edit User";
+        document.getElementById("formUserId").value = editObj.id;
+        document.getElementById("formUserName").value = editObj.name;
+        document.getElementById("formUserEmail").value = editObj.email;
+        document.getElementById("formUserPass").value = editObj.password;
+        document.getElementById("formUserRole").value = editObj.role;
+        document.getElementById("formUserStatus").value = editObj.status;
+      } else {
+        title.textContent = "Tambah User Baru";
+        document.getElementById("userForm").reset();
+        document.getElementById("formUserId").value = "";
+      }
+      modal.classList.remove("hidden");
+    }
+
+    function closeUserModal() {
+      document.getElementById("userModal").classList.add("hidden");
+    }
+
+    function saveUser(e) {
+      e.preventDefault();
+      const id = document.getElementById("formUserId").value || "usr_" + Date.now();
+      const newUser = {
+        id: id,
+        name: document.getElementById("formUserName").value.trim(),
+        email: document.getElementById("formUserEmail").value.trim(),
+        password: document.getElementById("formUserPass").value.trim(),
+        role: document.getElementById("formUserRole").value,
+        status: document.getElementById("formUserStatus").value
+      };
+
+      const existingIndex = state.users.findIndex(u => u.id === id);
+      if (existingIndex >= 0) {
+        state.users[existingIndex] = newUser;
+      } else {
+        state.users.push(newUser);
+      }
+
+      saveLocalState();
+      closeUserModal();
+      renderUserTable();
+      renderContactList();
+
+      // Sync GAS
+      if (gasUrl) {
+        fetch(gasUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "saveUser", data: newUser })
+        }).catch(err => console.error("Error GAS sync:", err));
+      }
+    }
+
+    function editUser(userId) {
+      const user = state.users.find(u => u.id === userId);
+      if (user) openUserModal(user);
+    }
+
+    function toggleUserStatus(userId) {
+      const user = state.users.find(u => u.id === userId);
+      if (user) {
+        user.status = user.status === "Active" ? "Inactive" : "Active";
+        saveLocalState();
+        renderUserTable();
+      }
+    }
+
+    // --- GAS SETTINGS & CONNECTION TESTER ---
+    function openGasModal() {
+      document.getElementById("gasModal").classList.remove("hidden");
+    }
+
+    function closeGasModal() {
+      document.getElementById("gasModal").classList.add("hidden");
+    }
+
+    function saveGasSettings() {
+      gasUrl = document.getElementById("gasUrlInput").value.trim();
+      localStorage.setItem("chat_gas_url", gasUrl);
+      
+      if (gasUrl) {
+        updateGasStatusUI(true, "Terhubung GAS");
+        refreshDataFromGAS();
+      } else {
+        updateGasStatusUI(false, "Mode Lokal / Off");
+      }
+      closeGasModal();
+    }
+
+    function testGasConnection() {
+      const tempUrl = document.getElementById("gasUrlInput").value.trim();
+      if (!tempUrl) {
+        alert("Masukkan URL GAS terlebih dahulu!");
+        return;
+      }
+
+      fetch(`${tempUrl}?action=getUsers`)
+        .then(res => res.json())
+        .then(data => {
+          alert("Koneksi Berhasil! Backend GAS merespon dengan baik.");
+        })
+        .catch(err => {
+          alert("Gagal terhubung. Pastikan Web App GAS di-deploy dengan akses 'Anyone'.");
+        });
+    }
+
+    function refreshDataFromGAS() {
+      if (!gasUrl) return;
+
+      // Sync Users
+      fetch(`${gasUrl}?action=getUsers`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            state.users = data;
+            saveLocalState();
+            if (currentUser) setupDashboardUI();
+          }
+        }).catch(e => console.warn("Lokal fallback users"));
+
+      // Sync Messages
+      fetch(`${gasUrl}?action=getMessages`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            state.messages = data;
+            saveLocalState();
+            if (activeContactId) renderMessages();
+          }
+        }).catch(e => console.warn("Lokal fallback messages"));
+    }
+
+    function refreshData() {
+      if (gasUrl) {
+        refreshDataFromGAS();
+      } else {
+        renderMessages();
+      }
+    }
+
+    function updateGasStatusUI(isConnected, text) {
+      const dot = document.getElementById("gasStatusDot");
+      const label = document.getElementById("gasStatusText");
+      const storageLabel = document.getElementById("storageModeLabel");
+
+      if (isConnected) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        label.textContent = text;
+        storageLabel.textContent = "Google Sheets (GAS)";
+        storageLabel.className = "font-medium text-emerald-400";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-amber-500";
+        label.textContent = text;
+        storageLabel.textContent = "Local Cache";
+        storageLabel.className = "font-medium text-amber-400";
+      }
+    }
+
+    function copyGasCode() {
+      const code = document.getElementById("gasCodeText").innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        alert("Kode backend GAS berhasil disalin!");
+      }).catch(() => {
+        const input = document.createElement("textarea");
+        input.value = code;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+        alert("Kode backend GAS berhasil disalin!");
+      });
+    }
+
+    // --- UTILITIES ---
+    function saveLocalState() {
+      localStorage.setItem("chat_users", JSON.stringify(state.users));
+      localStorage.setItem("chat_messages", JSON.stringify(state.messages));
+    }
+
+    function formatTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    function filterContacts() {
+      renderContactList();
+    }
+
+    function toggleSidebarMobile() {
+      const sidebar = document.getElementById("appSidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      sidebar.classList.toggle("-translate-x-full");
+      overlay.classList.toggle("hidden");
+    }
+  </script>
+</body>
+</html>
