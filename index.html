@@ -82,7 +82,7 @@
           <label class="block text-xs font-medium text-slate-300 mb-1">Email / Username</label>
           <div class="relative">
             <i class="ph-bold ph-envelope-simple absolute left-3.5 top-3 text-slate-500"></i>
-            <input type="text" id="loginEmail" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="email/username">
+            <input type="text" id="loginEmail" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="email atau username">
           </div>
         </div>
 
@@ -401,7 +401,6 @@
           <pre class="p-3 text-[11px] text-slate-300 font-mono overflow-x-auto max-h-52 bg-slate-950 select-text" id="gasCodeText">
 // ========================================================
 // CODE.GS - KODE BACKEND GOOGLE APPS SCRIPT
-// Tempelkan kode ini di Ekstensi > Apps Script Spreadsheet Anda
 // ========================================================
 
 function doGet(e) {
@@ -578,7 +577,7 @@ function getOrCreateSheet(sheetName, headers) {
         return;
       }
 
-      if (found.status === "Inactive") {
+      if (found.status && found.status.toLowerCase() === "inactive") {
         errBox.textContent = "Akun Anda dinonaktifkan oleh Superuser.";
         errBox.classList.remove("hidden");
         return;
@@ -624,14 +623,14 @@ function getOrCreateSheet(sheetName, headers) {
 
     // --- UI DASHBOARD SETUP ---
     function setupDashboardUI() {
-      document.getElementById("userName").textContent = currentUser.name;
+      document.getElementById("userName").textContent = currentUser.name || "User";
       document.getElementById("userAvatar").textContent = currentUser.name ? currentUser.name.substr(0, 2).toUpperCase() : 'US';
       
       const roleBadge = document.getElementById("userRoleBadge");
       roleBadge.textContent = currentUser.role ? currentUser.role.toUpperCase() : 'MEMBER';
 
       const tabBtnUsers = document.getElementById("tabBtnUsers");
-      if (currentUser.role === "Superuser") {
+      if (currentUser.role && currentUser.role.toLowerCase() === "superuser") {
         tabBtnUsers.classList.remove("hidden");
       } else {
         tabBtnUsers.classList.add("hidden");
@@ -657,7 +656,7 @@ function getOrCreateSheet(sheetName, headers) {
         btnChat.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-white bg-indigo-600/90 shadow-md shadow-indigo-600/20";
         btnUsers.className = "sidebar-tab w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:bg-slate-800 hover:text-slate-200";
       } else if (tabName === "users") {
-        if (currentUser.role !== "Superuser") {
+        if (!currentUser.role || currentUser.role.toLowerCase() !== "superuser") {
           alert("Akses ditolak! Hanya Superuser yang dapat mengelola pengguna.");
           return;
         }
@@ -679,11 +678,11 @@ function getOrCreateSheet(sheetName, headers) {
       const filter = document.getElementById("contactSearch").value.toLowerCase();
       listContainer.innerHTML = "";
 
-      // FIX BUG: Filter akun diri sendiri agar tidak bisa dichat
+      // Filter akun diri sendiri agar tidak muncul sebagai kontak chat
       const contacts = state.users.filter(u => 
         u.id !== currentUser.id && 
         u.email !== currentUser.email && 
-        u.name.toLowerCase().includes(filter)
+        u.name && u.name.toLowerCase().includes(filter)
       );
 
       if (contacts.length === 0) {
