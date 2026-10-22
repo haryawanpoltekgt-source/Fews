@@ -34,6 +34,9 @@
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+  <!-- Konfigurasi Backend API Terpisah -->
+  <script src="config.js"></script>
+
   <style>
     body { font-family: 'Inter', sans-serif; }
     /* Custom Scrollbar for clean aesthetics */
@@ -514,7 +517,11 @@ function getOrCreateSheet(sheetName, headers) {
 
     let currentUser = null;
     let activeContactId = null;
-    let gasUrl = localStorage.getItem("chat_gas_url") || "";
+    
+    // Mengambil URL dari config.js, atau fallback ke localStorage jika config kosong
+    let gasUrl = (typeof CONFIG !== 'undefined' && CONFIG.API_URL && CONFIG.API_URL.includes("http")) 
+      ? CONFIG.API_URL 
+      : (localStorage.getItem("chat_gas_url") || "");
     
     let state = {
       users: JSON.parse(localStorage.getItem("chat_users")) || DEFAULT_USERS,
