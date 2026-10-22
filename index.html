@@ -79,10 +79,10 @@
       <!-- Login Form -->
       <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Email</label>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email / Username</label>
           <div class="relative">
             <i class="ph-bold ph-envelope-simple absolute left-3.5 top-3 text-slate-500"></i>
-            <input type="email" id="loginEmail" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="email@domain.com">
+            <input type="text" id="loginEmail" required class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" placeholder="email/username">
           </div>
         </div>
 
@@ -291,7 +291,7 @@
                   <tr>
                     <th class="py-3 px-4">User ID</th>
                     <th class="py-3 px-4">Nama</th>
-                    <th class="py-3 px-4">Email</th>
+                    <th class="py-3 px-4">Email / Username</th>
                     <th class="py-3 px-4">Role</th>
                     <th class="py-3 px-4">Status</th>
                     <th class="py-3 px-4 text-right">Aksi</th>
@@ -327,8 +327,8 @@
           <input type="text" id="formUserName" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">Email</label>
-          <input type="email" id="formUserEmail" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs font-medium text-slate-300 mb-1">Email / Username</label>
+          <input type="text" id="formUserEmail" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
@@ -433,49 +433,58 @@ function responseJSON(data) {
 }
 
 function getUsersData() {
-  var sheet = getOrCreateSheet("Users", ["id", "name", "email", "password", "role", "status"]);
+  var sheet = getOrCreateSheet("Users", ["id", "username", "password", "name", "role", "status"]);
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var headers = data[0];
   return data.slice(1).map(function(row) {
     var obj = {};
-    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    headers.forEach(function(h, i) { 
+      var key = h;
+      if (h === "username") key = "email";
+      obj[key] = row[i]; 
+    });
     return obj;
   });
 }
 
 function getMessagesData() {
-  var sheet = getOrCreateSheet("Messages", ["id", "senderId", "receiverId", "text", "timestamp"]);
+  var sheet = getOrCreateSheet("Messages", ["id", "fromId", "told", "text", "timestamp"]);
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var headers = data[0];
   return data.slice(1).map(function(row) {
     var obj = {};
-    headers.forEach(function(h, i) { obj[h] = row[i]; });
+    headers.forEach(function(h, i) { 
+      var key = h;
+      if (h === "fromId") key = "senderId";
+      if (h === "told") key = "receiverId";
+      obj[key] = row[i]; 
+    });
     return obj;
   });
 }
 
 function saveMessage(msg) {
-  var sheet = getOrCreateSheet("Messages", ["id", "senderId", "receiverId", "text", "timestamp"]);
+  var sheet = getOrCreateSheet("Messages", ["id", "fromId", "told", "text", "timestamp"]);
   sheet.appendRow([msg.id, msg.senderId, msg.receiverId, msg.text, msg.timestamp]);
   return { status: "success", data: msg };
 }
 
 function saveUser(user) {
-  var sheet = getOrCreateSheet("Users", ["id", "name", "email", "password", "role", "status"]);
+  var sheet = getOrCreateSheet("Users", ["id", "username", "password", "name", "role", "status"]);
   var data = sheet.getDataRange().getValues();
   var foundIndex = -1;
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === user.id || data[i][2] === user.email) {
+    if (data[i][0] === user.id || data[i][1] === user.email) {
       foundIndex = i + 1;
       break;
     }
   }
   if (foundIndex > 0) {
-    sheet.getRange(foundIndex, 1, 1, 6).setValues([[user.id, user.name, user.email, user.password, user.role, user.status]]);
+    sheet.getRange(foundIndex, 1, 1, 6).setValues([[user.id, user.email, user.password, user.name, user.role, user.status]]);
   } else {
-    sheet.appendRow([user.id, user.name, user.email, user.password, user.role, user.status]);
+    sheet.appendRow([user.id, user.email, user.password, user.name, user.role, user.status]);
   }
   return { status: "success", data: user };
 }
@@ -517,8 +526,9 @@ function getOrCreateSheet(sheetName, headers) {
 
     let currentUser = null;
     let activeContactId = null;
+    let pollInterval = null;
     
-    // Mengambil URL dari config.js, atau fallback ke localStorage jika config kosong
+    // Mengambil URL dari config.js, atau fallback ke localStorage
     let gasUrl = (typeof CONFIG !== 'undefined' && CONFIG.API_URL && CONFIG.API_URL.includes("http")) 
       ? CONFIG.API_URL 
       : (localStorage.getItem("chat_gas_url") || "");
@@ -556,10 +566,14 @@ function getOrCreateSheet(sheetName, headers) {
       const pass = document.getElementById("loginPassword").value.trim();
       const errBox = document.getElementById("loginError");
 
-      const found = state.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+      const found = state.users.find(u => 
+        ((u.email && u.email.toLowerCase() === email.toLowerCase()) || 
+         (u.username && u.username.toLowerCase() === email.toLowerCase())) && 
+        u.password === pass
+      );
 
       if (!found) {
-        errBox.textContent = "Email atau password salah!";
+        errBox.textContent = "Email / Username atau password salah!";
         errBox.classList.remove("hidden");
         return;
       }
@@ -578,22 +592,43 @@ function getOrCreateSheet(sheetName, headers) {
       document.getElementById("mainDashboard").classList.remove("hidden");
 
       setupDashboardUI();
+
+      // Mulai Auto Polling Chat (Setiap 3 Detik)
+      startAutoPolling();
     }
 
     function logout() {
       currentUser = null;
       activeContactId = null;
+      stopAutoPolling();
       document.getElementById("mainDashboard").classList.add("hidden");
       document.getElementById("loginPage").classList.remove("hidden");
+    }
+
+    // --- REALTIME AUTO POLLING ---
+    function startAutoPolling() {
+      stopAutoPolling();
+      pollInterval = setInterval(() => {
+        if (gasUrl && currentUser) {
+          refreshDataFromGAS(true); // Silent refresh
+        }
+      }, 3000); // Poll every 3 seconds
+    }
+
+    function stopAutoPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
     }
 
     // --- UI DASHBOARD SETUP ---
     function setupDashboardUI() {
       document.getElementById("userName").textContent = currentUser.name;
-      document.getElementById("userAvatar").textContent = currentUser.name.substr(0, 2).toUpperCase();
+      document.getElementById("userAvatar").textContent = currentUser.name ? currentUser.name.substr(0, 2).toUpperCase() : 'US';
       
       const roleBadge = document.getElementById("userRoleBadge");
-      roleBadge.textContent = currentUser.role.toUpperCase();
+      roleBadge.textContent = currentUser.role ? currentUser.role.toUpperCase() : 'MEMBER';
 
       const tabBtnUsers = document.getElementById("tabBtnUsers");
       if (currentUser.role === "Superuser") {
@@ -644,7 +679,12 @@ function getOrCreateSheet(sheetName, headers) {
       const filter = document.getElementById("contactSearch").value.toLowerCase();
       listContainer.innerHTML = "";
 
-      const contacts = state.users.filter(u => u.id !== currentUser.id && u.name.toLowerCase().includes(filter));
+      // FIX BUG: Filter akun diri sendiri agar tidak bisa dichat
+      const contacts = state.users.filter(u => 
+        u.id !== currentUser.id && 
+        u.email !== currentUser.email && 
+        u.name.toLowerCase().includes(filter)
+      );
 
       if (contacts.length === 0) {
         listContainer.innerHTML = `<div class="p-4 text-xs text-slate-500 text-center">Tidak ada kontak ditemukan</div>`;
@@ -661,7 +701,7 @@ function getOrCreateSheet(sheetName, headers) {
 
         item.innerHTML = `
           <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-semibold text-xs text-slate-200 shrink-0">
-            ${c.name.substr(0, 2).toUpperCase()}
+            ${c.name ? c.name.substr(0, 2).toUpperCase() : 'US'}
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
@@ -683,8 +723,8 @@ function getOrCreateSheet(sheetName, headers) {
       if (!contact) return;
 
       document.getElementById("activeContactName").textContent = contact.name;
-      document.getElementById("activeContactRole").textContent = `${contact.role} • ${contact.email}`;
-      document.getElementById("activeContactAvatar").textContent = contact.name.substr(0, 2).toUpperCase();
+      document.getElementById("activeContactRole").textContent = `${contact.role || 'Member'} • ${contact.email || ''}`;
+      document.getElementById("activeContactAvatar").textContent = contact.name ? contact.name.substr(0, 2).toUpperCase() : 'US';
 
       renderMessages();
     }
@@ -777,7 +817,10 @@ function getOrCreateSheet(sheetName, headers) {
       const filter = document.getElementById("userTableSearch").value.toLowerCase();
       tbody.innerHTML = "";
 
-      const filtered = state.users.filter(u => u.name.toLowerCase().includes(filter) || u.email.toLowerCase().includes(filter));
+      const filtered = state.users.filter(u => 
+        (u.name && u.name.toLowerCase().includes(filter)) || 
+        (u.email && u.email.toLowerCase().includes(filter))
+      );
 
       filtered.forEach(u => {
         const tr = document.createElement("tr");
@@ -786,16 +829,16 @@ function getOrCreateSheet(sheetName, headers) {
         tr.innerHTML = `
           <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${u.id}</td>
           <td class="py-3 px-4 font-semibold text-slate-200">${u.name}</td>
-          <td class="py-3 px-4 text-slate-400">${u.email}</td>
+          <td class="py-3 px-4 text-slate-400">${u.email || u.username}</td>
           <td class="py-3 px-4">
             <span class="px-2 py-0.5 text-[10px] rounded font-medium ${u.role === 'Superuser' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-300'}">
-              ${u.role}
+              ${u.role || 'Member'}
             </span>
           </td>
           <td class="py-3 px-4">
             <span class="inline-flex items-center gap-1 text-[11px] ${u.status === 'Active' ? 'text-emerald-400' : 'text-red-400'}">
               <span class="w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
-              ${u.status}
+              ${u.status || 'Active'}
             </span>
           </td>
           <td class="py-3 px-4 text-right space-x-2">
@@ -819,10 +862,10 @@ function getOrCreateSheet(sheetName, headers) {
         title.textContent = "Edit User";
         document.getElementById("formUserId").value = editObj.id;
         document.getElementById("formUserName").value = editObj.name;
-        document.getElementById("formUserEmail").value = editObj.email;
+        document.getElementById("formUserEmail").value = editObj.email || editObj.username;
         document.getElementById("formUserPass").value = editObj.password;
-        document.getElementById("formUserRole").value = editObj.role;
-        document.getElementById("formUserStatus").value = editObj.status;
+        document.getElementById("formUserRole").value = editObj.role || "Member";
+        document.getElementById("formUserStatus").value = editObj.status || "Active";
       } else {
         title.textContent = "Tambah User Baru";
         document.getElementById("userForm").reset();
@@ -900,8 +943,10 @@ function getOrCreateSheet(sheetName, headers) {
       if (gasUrl) {
         updateGasStatusUI(true, "Terhubung GAS");
         refreshDataFromGAS();
+        startAutoPolling();
       } else {
         updateGasStatusUI(false, "Mode Lokal / Off");
+        stopAutoPolling();
       }
       closeGasModal();
     }
@@ -923,7 +968,7 @@ function getOrCreateSheet(sheetName, headers) {
         });
     }
 
-    function refreshDataFromGAS() {
+    function refreshDataFromGAS(isSilent = false) {
       if (!gasUrl) return;
 
       // Sync Users
@@ -933,20 +978,24 @@ function getOrCreateSheet(sheetName, headers) {
           if (Array.isArray(data) && data.length > 0) {
             state.users = data;
             saveLocalState();
-            if (currentUser) setupDashboardUI();
+            if (currentUser) {
+              renderContactList();
+            }
           }
-        }).catch(e => console.warn("Lokal fallback users"));
+        }).catch(e => { if(!isSilent) console.warn("Lokal fallback users"); });
 
       // Sync Messages
       fetch(`${gasUrl}?action=getMessages`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
+            const prevLength = state.messages.length;
             state.messages = data;
             saveLocalState();
             if (activeContactId) renderMessages();
+            if (data.length !== prevLength) renderContactList();
           }
-        }).catch(e => console.warn("Lokal fallback messages"));
+        }).catch(e => { if(!isSilent) console.warn("Lokal fallback messages"); });
     }
 
     function refreshData() {
@@ -1003,7 +1052,8 @@ function getOrCreateSheet(sheetName, headers) {
     }
 
     function escapeHTML(str) {
-      return str.replace(/[&<>'"]/g, 
+      if (!str) return '';
+      return String(str).replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
       );
     }
