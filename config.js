@@ -4,5 +4,5 @@
 
 const CONFIG = {
   // Masukkan URL Web App Google Apps Script Anda di sini setelah di-deploy
-  API_URL: "https://script.google.com/macros/s/AKfycbxYSgR4aff4fYFmDXz9bXiJlV2SIoMjVwFnm_ikLK13_LcVJccdOWWxgjLjLGwQuDBm/exec" 
+  API_URL: "https://script.google.com/macros/s/AKfycbyMoIApcY7mbeybE_7qJykOr-daAfGlVLKxeMlGwzu1dhKDk8vIL74OJSvrbrAsCxme/exec" 
 };
